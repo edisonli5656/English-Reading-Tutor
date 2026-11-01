@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>English Reading Tutor</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:1340px;margin:0 auto;padding:16px;background:#fafaf7;color:#222}
+h1{font-size:22px}
+#text{font-size:26px;line-height:2;background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 4px #0002}
+.w{cursor:pointer;padding:2px 3px;border-radius:5px}
+.ok{color:#1a8f3c}.warn{color:#c98a00;text-decoration:underline dotted}.bad{color:#d32f2f;text-decoration:underline wavy}
+.skip{color:#999;text-decoration:line-through}.tmp{color:#7a7a7a}.cur{background:#ffe27a}
+button{font-size:16px;padding:10px 18px;margin:8px 6px 8px 0;border:0;border-radius:8px;background:#3b6ef5;color:#fff;cursor:pointer}
+button.g{background:#888}
+#msg{color:#b36b00;min-height:22px}
+textarea{width:100%;height:90px;font-size:15px;box-sizing:border-box}
+input{font-size:15px;padding:6px;width:90%;max-width:420px;box-sizing:border-box}
+.box{background:#fff;border-radius:12px;padding:12px 16px;margin-top:12px;box-shadow:0 1px 4px #0002}
+.chip{display:inline-block;background:#fde8e8;color:#b71c1c;padding:4px 10px;margin:3px;border-radius:14px;cursor:pointer}
+.chip.y{background:#fff3d6;color:#8a5d00}
+details{margin-top:12px}
+.legend span{margin-right:10px;font-size:14px}
+.say{background:#e3edff;border-radius:5px}.saying{background:#ffd54f}
+#ttsbox label{margin-right:12px;font-size:14px;white-space:nowrap}#ttsbox select{font-size:14px;padding:4px;max-width:200px}
+#finder summary{font-size:17px}
+.hit{border-top:1px solid #eee;padding:8px 0;font-size:15px;line-height:1.6}
+.hit mark{background:#ffe27a;padding:0 2px}
+button:disabled{opacity:.4;cursor:default}
+#go.on{background:#1a8f3c;opacity:1;animation:pulse 1.2s infinite}
+#stop.on{background:#d32f2f}
+@keyframes pulse{50%{box-shadow:0 0 0 6px #1a8f3c44}}
+.para{margin:0 0 .9em}.para:last-child{margin-bottom:0}
+#mk{display:none;background:#e8f5e9;border-left:5px solid #1a8f3c;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:16px;line-height:1.6}
+#fprev{font-size:15px;color:#555;background:#f4f4f0;border-radius:8px;padding:8px 10px;margin:6px 0;line-height:1.6}
+#layout{display:grid;grid-template-columns:minmax(0,1fr) clamp(330px,31vw,420px);gap:18px;align-items:start}
+#main{min-width:0}
+#side{position:sticky;top:10px;max-height:calc(100vh - 20px);overflow-y:auto;padding-bottom:4px}
+#side>.box:first-child{margin-top:0}
+#dict .hint{color:#888;font-size:15px;line-height:1.7}
+@media(max-width:960px){#layout{display:block}#side{position:static;max-height:none}#side>.box:first-child{margin-top:12px}}
+</style></head><body>
+<button id="langbtn" style="float:right;margin:0 0 0 8px;padding:7px 16px;font-size:15px">中文</button><h1>📖 英语朗读小老师 <small style="font-size:13px;color:#888">免费版 v4</small> <small style="font-size:13px;color:#2e7d32">不用密钥 · 不评分</small></h1>
+<div id="layout"><div id="main">
+<div class="legend"><span class="ok">绿=读到了</span><span class="skip">灰=连续跳过了好几个词</span><span style="color:#888">免费版只跟着读到哪里，不打发音分</span></div>
+<div id="mk"></div>
+<div id="text"></div>
+<div>
+<button id="go">🎤 开始朗读</button>
+<button id="stop" class="g">⏹ 结束</button>
+<button id="reset" class="g">↺ 重读</button>
+<label style="font-size:14px;white-space:nowrap"><input type="checkbox" id="auto" checked style="width:auto"> 读完自动翻页并继续听</label>
+<label style="font-size:14px;white-space:nowrap">没人读时 <select id="idle" style="font-size:14px;padding:4px"><option value="60">1</option><option value="120" selected>2</option><option value="180">3</option><option value="300">5</option></select> 分钟后自动停止</label>
+</div>
+<div id="today" style="margin:6px 2px 4px;font-size:16px"></div>
+<div id="why" style="margin:0 2px 8px;font-size:14px;color:#b36b00"></div>
+<div id="pager" style="display:none"><button id="prevp" class="g">◀ 上一页</button><span id="pg"></span><button id="nextp" class="g">下一页 ▶</button>
+<span style="white-space:nowrap;margin-left:8px">跳到第 <input id="gopg" type="number" min="1" inputmode="numeric" style="width:76px;font-size:16px;padding:6px"> 页 <button id="gopgb" class="g">跳转</button></span></div>
+<details id="finder" class="box" style="display:none"><summary><b>📍 找到纸质书读到的位置</b>（从后面接着读）</summary>
+<p><b>方法一：输入纸质书上最后读到的那句话</b><br><small style="color:#888">打开纸质书，把他最后读完的那一句（或其中连续的几个词）照着打进来，英文大小写、标点不用管。词越多越准，建议 4～8 个词。</small><br>
+<input id="fq" placeholder="例如：the fireman's job was to burn"> <button id="fgo">🔍 查找</button></p>
+<div id="fres"></div>
+<p><b>方法二：拖动滑块大致定位</b><br><small style="color:#888">拖动后下面会显示那一页的开头，对照纸质书，找到比他读到的位置稍微靠前一点的地方，再从这页往后翻。</small><br>
+<input type="range" id="fslide" min="1" max="1" value="1" style="width:100%;max-width:420px"> <b id="fn"></b>
+<div id="fprev"></div>
+<button id="fstart">从这页开始读</button></p>
+</details>
+<div id="msg"></div>
+<div id="report" class="box" style="display:none"></div>
+<details id="cfg" class="box"><summary><b>⚙ 说明与调试</b></summary>
+<p><small>免费版用 Chrome / Edge 自带的语音识别，不需要密钥，也没有用量限制。声音会发送给浏览器厂商（Chrome 是 Google）的语音服务来识别，所以需要联网；不会打发音分。</small></p>
+<p><small>调试信息（出问题时，请复制这里的内容发给我）：</small><br><textarea id="dbg" style="height:120px"></textarea></p></details>
+<div class="box"><b>📒 生词本</b> <span id="vcount" style="color:#888;font-size:14px"></span>（点词可听标准发音） <button id="vclear" class="g" style="float:right;padding:6px 12px;font-size:14px">🗑 清空生词本</button><div id="vdict" style="display:none;clear:both;margin:8px 0;padding:10px 12px;background:#f7f9fc;border-radius:8px"></div><div id="vocab" style="clear:both"></div></div>
+<div class="box"><b>📈 最近记录</b><div id="hist"></div></div>
+<div class="box"><b>📚 我的书架</b>（上传过的书会自动保存在这里）<div id="shelf"></div>
+<button id="upbtn">📤 上传新书（PDF 或 txt）</button><input type="file" id="file" accept=".pdf,.txt" hidden>
+<small style="display:block;color:#888">PDF 需要是能选中文字的，会自动分成每页约 100 词</small>
+<hr style="border:0;border-top:1px solid #eee;margin:10px 0">
+<b>💾 备份与换电脑</b><br>
+<button id="expbtn" class="g">💾 导出备份</button><button id="impbtn" class="g">📥 导入备份</button><input type="file" id="impfile" accept=".json" hidden>
+<small style="display:block;color:#888">备份里有：书架的书、每本书的阅读进度、生词本、最近记录、朗读时长。和 Azure 版的备份文件格式相同，可以互相导入。</small></div>
+<details><summary>粘贴一篇英文文章</summary>
+<textarea id="src"></textarea><br><button id="load">使用这篇</button></details>
+
+</div>
+<aside id="side">
+<div id="ttsbox" class="box" >
+<button id="say">🔊 听范读</button><button id="trpage" class="g">🌐 翻译整页</button>
+<label>语速 <select id="rate"><option value="0.6">慢</option><option value="0.8" selected>适中</option><option value="1">正常</option></select></label>
+<label>声音 <select id="voice"></select></label>
+<label><input type="checkbox" id="step" style="width:auto"> 每句读完先停下</label>
+<small style="display:block;color:#888">先听范读（蓝底=正在读的句子，黄色=正在读的词），再点「🎤 开始朗读」自己读。点任意单词，还能「听这一句」或「从这句听起」。</small>
+</div>
+<div id="dict" class="box"><div class="hint">👆 点文章里的任意单词，这里会显示它的中英文解释，还能「翻译整句」「听这一句」。</div></div>
+<div id="pagetr" class="box" style="display:none"></div>
+</aside>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+// ---- 界面语言（中文 / English）----
+let LANG=(()=>{try{return localStorage.getItem('uilang')||'en'}catch(e){return 'en'}})();
+const L=(zh,en)=>LANG==='en'?en:zh;
+const STATIC={"📖 英语朗读小老师": "📖 English Reading Tutor", "免费版 v4": "Free version v4", "不用密钥 · 不评分": "No key needed · No scoring", "绿=读到了": "Green = read", "灰=连续跳过了好几个词": "Gray = skipped several words in a row", "免费版只跟着读到哪里，不打发音分": "The free version follows where you are reading; it does not score pronunciation", "🎤 开始朗读": "🎤 Start Reading", "⏹ 结束": "⏹ Stop", "↺ 重读": "↺ Read again", "读完自动翻页并继续听": "Turn the page automatically and keep listening", "没人读时": "Stop automatically after", "分钟后自动停止": "min of silence", "◀ 上一页": "◀ Previous", "下一页 ▶": "Next ▶", "跳到第": "Go to page", "页": "", "跳转": "Go", "📍 找到纸质书读到的位置": "📍 Find where you stopped in the paper book", "（从后面接着读）": " (and continue from there)", "方法一：输入纸质书上最后读到的那句话": "Option 1: Type the last sentence read in the paper book", "打开纸质书，把他最后读完的那一句（或其中连续的几个词）照着打进来，英文大小写、标点不用管。词越多越准，建议 4～8 个词。": "Open the paper book and type the last sentence that was read (or a few words in a row from it). Capital letters and punctuation don’t matter. More words give a better match — 4 to 8 words works best.", "例如：the fireman's job was to burn": "e.g. the fireman's job was to burn", "🔍 查找": "🔍 Find", "方法二：拖动滑块大致定位": "Option 2: Drag the slider to get close", "拖动后下面会显示那一页的开头，对照纸质书，找到比他读到的位置稍微靠前一点的地方，再从这页往后翻。": "As you drag, the start of that page appears below. Compare it with the paper book, pick a spot a little before where the reader stopped, then turn pages forward from there.", "从这页开始读": "Start reading from this page", "⚙ 说明与调试": "⚙ About & troubleshooting", "免费版用 Chrome / Edge 自带的语音识别，不需要密钥，也没有用量限制。声音会发送给浏览器厂商（Chrome 是 Google）的语音服务来识别，所以需要联网；不会打发音分。": "The free version uses the speech recognition built into Chrome / Edge. It needs no key and has no usage limit. Your voice is sent to the browser maker’s speech service (Google, for Chrome) to be recognized, so you need to be online. Pronunciation is not scored.", "调试信息（出问题时，请复制这里的内容发给我）：": "Debug info (if something goes wrong, copy this and send it to the developer):", "📒 生词本": "📒 Word list", "（点词可听标准发音）": " (click a word to hear it)", "🗑 清空生词本": "🗑 Clear word list", "📈 最近记录": "📈 Recent sessions", "📚 我的书架": "📚 My bookshelf", "（上传过的书会自动保存在这里）": " (books you upload are saved here automatically)", "📤 上传新书（PDF 或 txt）": "📤 Upload a book (PDF or txt)", "PDF 需要是能选中文字的，会自动分成每页约 100 词": "The PDF must have selectable text. It will be split into pages of about 100 words.", "💾 备份与换电脑": "💾 Backup & moving to another computer", "💾 导出备份": "💾 Export backup", "📥 导入备份": "📥 Import backup", "备份里有：书架的书、每本书的阅读进度、生词本、最近记录、朗读时长。和 Azure 版的备份文件格式相同，可以互相导入。": "The backup includes the books on your shelf, reading progress for each book, the word list, recent sessions and reading time. It uses the same format as the Azure version, so backups work in both.", "粘贴一篇英文文章": "Paste an English article", "使用这篇": "Use this text", "🔊 听范读": "🔊 Listen", "🌐 翻译整页": "🌐 Translate page", "语速": "Speed", "慢": "Slow", "适中": "Medium", "正常": "Normal", "声音": "Voice", "每句读完先停下": "Pause after each sentence", "先听范读（蓝底=正在读的句子，黄色=正在读的词），再点「🎤 开始朗读」自己读。点任意单词，还能「听这一句」或「从这句听起」。": "Listen first (blue = the sentence being read, yellow = the word being read), then click “🎤 Start Reading” to read it yourself. Click any word to “Hear this sentence” or “Listen from here”.", "👆 点文章里的任意单词，这里会显示它的中英文解释，还能「翻译整句」「听这一句」。": "👆 Click any word in the text to see its meaning in Chinese and English here, and to “Translate sentence” or “Hear this sentence”."};
+const DONE='__pagedone__';
+const _i18n=[];
+(()=>{const tw=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;
+  while((n=tw.nextNode())){if(n.parentNode&&n.parentNode.tagName==='SCRIPT')continue;const t=n.nodeValue.trim();if(t&&t in STATIC)_i18n.push({n,orig:n.nodeValue,t})}
+  document.querySelectorAll('[placeholder]').forEach(e=>{const t=e.getAttribute('placeholder');if(t in STATIC)_i18n.push({n:e,t,ph:1})})})();
+function applyStatic(){
+  _i18n.forEach(o=>{const v=LANG==='en'?STATIC[o.t]:o.t;if(o.ph)o.n.setAttribute('placeholder',v);else o.n.nodeValue=o.orig.replace(o.t,v)});
+  document.documentElement.lang=LANG==='en'?'en':'zh';
+  document.title=L('英语朗读小老师（免费版）','English Reading Tutor');
+  document.getElementById('langbtn').textContent=LANG==='en'?'中文':'English';
+}
+applyStatic();
+const $=id=>document.getElementById(id);
+const SAMPLE="Max had a big problem. His little robot, Bolt, would not stop singing. Every morning, Bolt sang loudly at the window. The neighbours were not happy. One day, Max had an idea. He gave Bolt a tiny hat and a small stage in the garden. Soon, a crowd came to listen. Everyone loved the funny robot, and Bolt was never lonely again.";
+const norm=w=>w.toLowerCase().replace(/’/g,"'").replace(/[^a-z0-9']/g,'');
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const store=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k)||'null');localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}};
+const speak=w=>{try{ttsStop();speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(w);u.lang='en-US';u.rate=.8;speechSynthesis.speak(u)}catch(e){}};
+const msg=t=>$('msg').textContent=t;
+
+const dbg=ws=>{try{$('dbg').value+=ws.map(w=>w.Word+':'+((w.PronunciationAssessment||{}).ErrorType||'-')+':'+Math.round((w.PronunciationAssessment||{}).AccuracyScore||0)).join('  ')+'\n---\n'}catch(e){}};
+let words=[],ref=[],st=[],heard=[],score=[],P=0,base,rec=null,reading=false,t0=0;
+
+let paraStart=new Set();
+function load(text){trTok++;$('pagetr').style.display='none';ttsStop(true);tIdx=0;
+  words=[];paraStart=new Set();
+  text.trim().split(/\n[ \t\r]*\n+/).forEach(p=>{const ws=p.trim().split(/\s+/).filter(w=>norm(w));if(!ws.length)return;if(words.length)paraStart.add(words.length);words.push(...ws)});
+  ref=words.map(norm);buildSents();resetState();setTimeout(prefetch,500)}
+function resetState(){
+  st=ref.map(()=>'n');heard=[];score=[];P=0;base={st:st.slice(),P:0,heard:[],score:[]};
+  $('report').style.display='none';render();
+}
+function render(){
+  $('text').innerHTML='<div class="para">'+words.map((w,i)=>(i===0?'':paraStart.has(i)?'</div><div class="para">':' ')+`<span class="w ${st[i]} ${i===P&&reading?'cur':''} ${tRange&&i>=tRange[0]&&i<=tRange[1]?'say':''} ${i===tWord?'saying':''}" data-i="${i}" title="${score[i]!=null?L('发音分 ','Score ')+score[i]:''}">${esc(w)}</span>`).join('')+'</div>';
+  const c=document.querySelector('.cur');if(c){const q=c.getBoundingClientRect();if(q.top<80||q.bottom>innerHeight-80)c.scrollIntoView({block:'center'})}
+}
+let dI=0;
+const wordAt=i=>words[i].replace(/[^\w']/g,'');
+const sentAt=i=>{let a=i,b=i;const end=/[.!?]["”']?$/;while(a>0&&!end.test(words[a-1]))a--;while(b<words.length-1&&!end.test(words[b]))b++;return words.slice(a,b+1).join(' ')};
+const tcache=store('tcache')||{},dcache=store('dcache')||{};
+const saveCache=(c,k)=>{const ks=Object.keys(c);if(ks.length>600)delete c[ks[0]];store(k,c)};
+const timed=async(url)=>{const c=new AbortController(),to=setTimeout(()=>c.abort(),5000);try{return await fetch(url,{signal:c.signal})}finally{clearTimeout(to)}};
+const trMM=async q=>{
+  const r=await timed('https://api.mymemory.translated.net/get?q='+encodeURIComponent(q)+'&langpair=en|zh-CN');
+  const j=await r.json();const t=(j.responseData||{}).translatedText||'';if(!t||/MYMEMORY/i.test(t))throw 0;return t};
+const trGG=async q=>{
+  const r=await timed('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q='+encodeURIComponent(q));
+  if(!r.ok)throw 0;const j=await r.json();const t=(j[0]||[]).map(x=>x[0]).join('');if(!t)throw 0;return t};
+// 两个翻译源同时查，谁先回来用谁
+const tr=async q=>{const k=q.toLowerCase();if(tcache[k])return tcache[k];
+  const t=await Promise.any([trGG(q),trMM(q)]);
+  tcache[k]=t;saveCache(tcache,'tcache');return t};
+const POS={noun:'n.',verb:'v.',adjective:'adj.',adverb:'adv.',preposition:'prep.',conjunction:'conj.',pronoun:'pron.',interjection:'interj.',exclamation:'interj.',determiner:'det.',abbreviation:'abbr.'};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+// 单词：一次请求同时拿到「中文（多个词性/意思）」和「英文释义」
+const wcache=store('wcache')||{};
+function parseGtx(j){
+  const zh=(j[0]||[]).map(x=>x&&x[0]||'').join('');
+  let zs=[];try{zs=(j[1]||[]).slice(0,3).map(g=>(POS[g[0]]||g[0]+'.')+' '+(g[1]||[]).slice(0,4).join('；'))}catch(e){}
+  let gdef='';try{const g=(j[12]||[])[0];if(g)gdef=(POS[g[0]]||g[0]+'.')+' '+g[1][0][0]}catch(e){}
+  if(!zh)throw 0;return{zh,zs,gdef};
+}
+const getZh=async lw=>{if(wcache[lw])return wcache[lw];
+  let o;
+  try{const r=await timed('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&dt=bd&dt=md&q='+encodeURIComponent(lw));if(!r.ok)throw 0;o=parseGtx(await r.json())}
+  catch(e){o={zh:await trMM(lw),zs:[],gdef:''}}
+  wcache[lw]=o;saveCache(wcache,'wcache');return o};
+// 英文释义 + 音标：先用 dictionaryapi.dev，不行就换 Datamuse
+const getDef=async lw=>{if(dcache[lw])return dcache[lw];
+  const a=async()=>{const r=await timed('https://api.dictionaryapi.dev/v2/entries/en/'+encodeURIComponent(lw));if(!r.ok)throw 0;
+    const j=await r.json(),m=j[0].meanings[0];return{ph:j[0].phonetic||'',def:m.partOfSpeech+'. '+m.definitions[0].definition}};
+  const b=async()=>{const r=await timed('https://api.datamuse.com/words?max=1&md=d&sp='+encodeURIComponent(lw));if(!r.ok)throw 0;
+    const j=await r.json(),x=j[0]&&j[0].word===lw&&(j[0].defs||[])[0];if(!x)throw 0;
+    const [p,...t]=x.split('\t');return{ph:'',def:({n:'n.',v:'v.',adj:'adj.',adv:'adv.'}[p]||'')+' '+t.join(' ')}};
+  const d=await Promise.any([a().catch(()=>b()),sleep(2000).then(b)]);
+  dcache[lw]=d;saveCache(dcache,'dcache');return d};
+// 国际音标（IPA）：先用 dictionaryapi.dev（有美式/英式），查不到再用维基词典
+const phcache=store('phc2')||{};
+const fmtIpa=t=>{t=(t||'').trim();if(!t)return '';return /^[\/\[]/.test(t)?t:'/'+t+'/'};
+function pickIpa(j){
+  const all=[];
+  (Array.isArray(j)?j:[]).forEach(x=>{
+    (x.phonetics||[]).forEach(p=>{if(p.text)all.push({t:p.text,r:/-us[.\-]/i.test(p.audio||'')?'us':/-uk[.\-]/i.test(p.audio||'')?'uk':''})});
+    if(x.phonetic)all.push({t:x.phonetic,r:''});
+  });
+  if(!all.length)return '';
+  const us=all.find(p=>p.r==='us'),uk=all.find(p=>p.r==='uk');
+  if(us&&uk&&us.t!==uk.t)return L('美 ','US ')+fmtIpa(us.t)+L('　英 ','　UK ')+fmtIpa(uk.t);
+  return fmtIpa((us||uk||all[0]).t);
+}
+function ipaFromWikitext(t){
+  const k=t.indexOf('==English==');if(k<0)return '';
+  let sec=t.slice(k+11);const m=sec.search(/\n==[^=]/);if(m>=0)sec=sec.slice(0,m);
+  const pick=re=>{const x=sec.match(re);return x?x[1]:''};
+  return pick(/\{\{a\|[^}\n]*US[^}\n]*\}\}[^\n]*?\{\{IPA\|en\|(\/[^|}\/\n]+\/)/)||pick(/\{\{IPA\|en\|(\/[^|}\/\n]+\/)/);
+}
+const getPh=async lw=>{
+  if(phcache[lw]!==undefined)return phcache[lw];
+  let ph='',neterr=false;
+  try{const r=await timed('https://api.dictionaryapi.dev/v2/entries/en/'+encodeURIComponent(lw));if(r.ok)ph=pickIpa(await r.json())}catch(e){neterr=true}
+  if(!ph){
+    try{const r=await timed('https://en.wiktionary.org/w/api.php?action=parse&format=json&origin=*&prop=wikitext&redirects=1&page='+encodeURIComponent(lw));
+      if(r.ok){const j=await r.json();ph=ipaFromWikitext((((j.parse||{}).wikitext)||{})['*']||'')}}catch(e){neterr=true}
+  }
+  if(ph||!neterr){phcache[lw]=ph;saveCache(phcache,'phc2')}
+  return ph;
+};
+// 后台预查：翻开一页后，趁你还没点词，先把这页的生词查好存起来，点的时候就是秒出
+let pfTok=0;
+async function prefetch(){
+  const tok=++pfTok;
+  const q=[...new Set(words.map(w=>w.replace(/[^\w']/g,'').toLowerCase()))]
+    .filter(w=>w.length>3&&!FN.has(w)&&!(wcache[w]&&dcache[w]));
+  let fails=0;
+  const worker=async()=>{
+    while(q.length&&tok===pfTok&&fails<3){
+      while(reading&&tok===pfTok)await sleep(1000);
+      const w=q.shift();
+      try{await Promise.all([wcache[w]?0:getZh(w),dcache[w]?0:getDef(w).catch(()=>{})])}catch(e){fails++}
+      await sleep(150);
+    }
+  };
+  worker();worker();
+}
+function autoAdd(lw){if(!/[a-z]/.test(lw))return false;const v=store('vocab')||[];if(v.includes(lw))return false;v.push(lw);store('vocab',v);showStore();return true}
+function rmVocab(i,btn){const lw=wordAt(i).toLowerCase();store('vocab',(store('vocab')||[]).filter(x=>x!==lw));showStore();if(btn)btn.outerHTML='<small>'+L('已从生词本移除','Removed from word list')+'</small>'}
+let trTok=0;
+function pageSents(text){
+  const raw=text.match(/[^.!?]+[.!?]+["”')]*\s*|[^.!?]+$/g)||[text],out=[];
+  raw.forEach(x=>{x=x.trim();if(!x)return;
+    if(out.length&&(/\b(Mr|Mrs|Ms|Dr|St|Prof|Jr|Sr)\.$/.test(out[out.length-1])||/^[a-z]/.test(x)))out[out.length-1]+=' '+x;else out.push(x)});
+  return out;
+}
+async function translatePage(){
+  const tok=++trTok,box=$('pagetr'),ss=pageSents(words.join(' '));
+  if(!ss.length)return;
+  const zh=new Array(ss.length).fill(null),fail=new Array(ss.length).fill(false);let done=0;
+  const draw=(fin)=>{if(tok!==trTok)return;
+    box.style.display='block';
+    box.innerHTML='<b>'+L('🌐 本页翻译','🌐 Page translation')+'</b> <small style="color:#888">'+(fin?L('共 '+ss.length+' 句',ss.length+' sentences'):L('翻译中 ','Translating ')+done+' / '+ss.length+' …')+'</small>'+
+     '<button id="trhide" class="g" style="float:right;padding:6px 12px;font-size:14px">'+L('✖ 收起','✖ Hide')+'</button>'+
+     (fin&&fail.some(Boolean)?'<button id="trretry" class="g" style="float:right;padding:6px 12px;font-size:14px;margin-right:6px">'+L('↻ 重试失败的句子','↻ Retry failed sentences')+'</button>':'')+
+     '<div style="clear:both"></div>'+
+     ss.map((e,i)=>'<div style="margin:10px 0;line-height:1.6"><div style="color:#777;font-size:15px">'+esc(e)+'</div><div style="font-size:18px">'+(zh[i]!==null?esc(zh[i]):(fail[i]?'<small style="color:#c62828">'+L('（这句翻译失败）','(translation failed)')+'</small>':'<small style="color:#aaa">…</small>'))+'</div></div>').join('');
+    $('trhide').onclick=()=>{trTok++;box.style.display='none'};
+    if($('trretry'))$('trretry').onclick=translatePage;
+  };
+  draw(false);
+  let next=0;
+  const worker=async()=>{while(next<ss.length&&tok===trTok){const i=next++;
+    try{zh[i]=await tr(ss[i])}catch(e){fail[i]=true}
+    done++;draw(false)}};
+  await Promise.all([worker(),worker(),worker()]);
+  draw(true);
+}
+$('trpage').onclick=translatePage;
+let vTok=0;
+function lookupVocab(w){
+  const lw=w.toLowerCase(),tok=++vTok,box=$('vdict');speak(w);box.style.display='block';
+  let zh='',zs=[],gdef='',def='',ph='',zd=false,dd=false;
+  const draw=()=>{if(tok!==vTok)return;
+    box.innerHTML='<b style="font-size:22px">'+esc(w)+'</b> <span style="color:#444;font-size:18px">'+esc(ph)+'</span><br>'+
+      (zh?L('中文：','Chinese: ')+'<b>'+esc(zh)+'</b><br>'+(zs.length?'<small style="color:#555">'+zs.map(x=>esc(x)).join('<br>')+'</small><br>':''):L('中文：','Chinese: ')+'<small>'+(zd?L('暂时查不到（请检查网络）','not found right now (check your internet)'):L('查询中…','looking up…'))+'</small><br>')+
+      ((def||gdef)?'<small style="color:#555">'+esc(def||gdef)+'</small><br>':((dd&&zd)?'<small style="color:#aaa">'+L('英文释义暂时查不到','English definition not found')+'</small><br>':'<small style="color:#aaa">'+L('英文释义查询中…','Looking up English definition…')+'</small><br>'))+
+      '<button id="vd-say">'+L('🔊 再听一遍','🔊 Hear again')+'</button><button id="vd-rm" class="g">'+L('🗑 从生词本移除','🗑 Remove from word list')+'</button><button id="vd-x" class="g">'+L('✖ 关闭','✖ Close')+'</button>';
+    $('vd-say').onclick=()=>speak(w);
+    $('vd-x').onclick=()=>{vTok++;box.style.display='none'};
+    $('vd-rm').onclick=()=>{store('vocab',(store('vocab')||[]).filter(x=>x!==lw));vTok++;box.style.display='none';showStore();msg(L('已从生词本移除「'+w+'」','Removed “'+w+'” from the word list'))};
+  };
+  _vRedraw=draw;draw();
+  getZh(lw).then(o=>{zh=o.zh;zs=o.zs;gdef=o.gdef}).catch(()=>{}).finally(()=>{zd=true;draw()});
+  getDef(lw).then(d=>{if(!ph)ph=fmtIpa(d.ph);def=d.def}).catch(()=>{}).finally(()=>{dd=true;draw()});
+  getPh(lw).then(p=>{if(p){ph=p;draw()}}).catch(()=>{});
+}
+$('vocab').onclick=e=>{const w=e.target.dataset&&e.target.dataset.w;if(w)lookupVocab(w)};
+async function transSentence(){const el=$('sent');el.textContent=L('翻译中…','Translating…');try{el.textContent=await tr(sentAt(dI))}catch(e){el.textContent=L('翻译失败，请检查网络后重试','Translation failed. Check your internet and try again')}}
+async function lookup(i){
+  dI=i;const w=wordAt(i),lw=w.toLowerCase();speak(w);autoAdd(lw);
+  const box=$('dict');box.style.display='block';
+  let zh='',zs=[],gdef='',def='',ph='',zd=false,dd=false,sent=$('sent')?$('sent').textContent:'';
+  const draw=()=>{if(dI!==i)return;
+    box.innerHTML=`<b style="font-size:22px">${esc(w)}</b> <span style="color:#444;font-size:18px">${esc(ph)}</span><br>`+
+     (zh?`${L('中文：','Chinese: ')}<b>${esc(zh)}</b><br>`+(zs.length?`<small style="color:#555">${zs.map(x=>esc(x)).join('<br>')}</small><br>`:''):`${L('中文：','Chinese: ')}<small>${zd?L('暂时查不到（请检查网络）','not found right now (check your internet)'):L('查询中…','looking up…')}</small><br>`)+
+     ((def||gdef)?`<small style="color:#555">${esc(def||gdef)}</small><br>`:((dd&&zd)?'<small style="color:#aaa">'+L('英文释义暂时查不到','English definition not found')+'</small><br>':'<small style="color:#aaa">'+L('英文释义查询中…','Looking up English definition…')+'</small><br>'))+
+     `<button onclick="speak(wordAt(dI))">${L('🔊 再听一遍','🔊 Hear again')}</button><button onclick="rmVocab(dI,this)" class="g">${L('✅ 已加入生词本 · 点此移除','✅ In word list · click to remove')}</button><button onclick="transSentence()" class="g">${L('🌐 翻译整句','🌐 Translate sentence')}</button><button onclick="sayFrom(dI,true)" class="g">${L('🔂 听这一句','🔂 Hear this sentence')}</button><button onclick="sayFrom(dI,false)" class="g">${L('▶ 从这句听起','▶ Listen from here')}</button><div id="sent" style="margin-top:6px">${esc(sent)}</div>`};
+  _dRedraw=()=>{sent=$('sent')?$('sent').textContent:sent;draw()};draw();
+  getZh(lw).then(o=>{zh=o.zh;zs=o.zs;gdef=o.gdef}).catch(()=>{}).finally(()=>{zd=true;draw()});
+  getDef(lw).then(d=>{if(!ph)ph=fmtIpa(d.ph);def=d.def}).catch(()=>{}).finally(()=>{dd=true;draw()});
+  getPh(lw).then(p=>{if(p){ph=p;draw()}}).catch(()=>{});
+}
+$('text').onclick=e=>{const i=e.target.dataset.i;if(i!==undefined)lookup(+i)};
+
+// 说话过程中的即时反馈（临时，灰色）
+// 语音识别常把缩写听成两个词（we are → we're），先合并回去
+const CONTR={'we are':"we're",'you are':"you're",'they are':"they're",'i am':"i'm",'he is':"he's",'she is':"she's",'it is':"it's",'that is':"that's",'there is':"there's",'what is':"what's",'let us':"let's",'do not':"don't",'does not':"doesn't",'did not':"didn't",'is not':"isn't",'was not':"wasn't",'are not':"aren't",'were not':"weren't",'can not':"can't",'will not':"won't",'would not':"wouldn't",'could not':"couldn't",'should not':"shouldn't",'have not':"haven't",'has not':"hasn't",'had not':"hadn't",'i have':"i've",'we have':"we've",'you have':"you've",'they have':"they've",'i will':"i'll",'you will':"you'll",'we will':"we'll",'they will':"they'll",'he will':"he'll",'she will':"she'll",'i would':"i'd",'you would':"you'd",'he would':"he'd",'she would':"she'd",'we would':"we'd",'they would':"they'd"};
+function fixContr(h){const o=[];for(let i=0;i<h.length;i++){const c=CONTR[h[i]+' '+h[i+1]];if(c){o.push(c);i++}else o.push(h[i])}return o}
+function align(hyp){hyp=fixContr(hyp);
+  const s=base.st.slice(),h=base.heard.slice();let p=base.P;
+  hyp.forEach((x,j)=>{
+    if(p>=ref.length)return;
+    const k=findK(hyp,j,p);
+    if(k<0)return;            // 没对上的词（杂音、口头禅、读错的词）不让光标前进
+    // 识别器偶尔会漏听一两个词：只漏了 1～3 个词时，仍当作读到了；连续漏掉 4 个词以上才标灰色
+    const gapN=ref.slice(p,k).filter(w=>!FN.has(w)).length;for(let m=p;m<k;m++)s[m]=(gapN<=3||FN.has(ref[m]))?'ok':'skip';s[k]='ok';p=k+1;
+  });
+  return{s,p,h,sc:base.score};
+}
+function apply(r){st=r.s;P=r.p;heard=r.h;score=r.sc;render();if(P>=ref.length&&reading){whyStop=DONE;stop()}}
+
+const FN=new Set('a an the and or but of to in on at is was were be he she it his her him i you we they my your our their this that for with as by from had has have not no so do did'.split(' '));
+// 判断两个词是否「差不多」（难词读得不准时，识别出来的词可能有点偏）
+const lev=(a,b)=>{const d=Array.from({length:a.length+1},(_,i)=>[i]);for(let j=1;j<=b.length;j++)d[0][j]=j;
+  for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length]};
+const similar=(a,b)=>{if(!a||!b)return false;if(a===b)return true;if(FN.has(a)||FN.has(b)||a.length<4||b.length<4)return false;return 1-lev(a,b)/Math.max(a.length,b.length)>=0.6};
+// 在课文里给第 j 个识别出的词找位置：不乱跳、不乱走
+function findK(seq,j,p){
+  const x=seq[j];
+  if(similar(ref[p],x))return p;                                   // 正好是下一个词
+  if((p>0&&ref[p-1]===x)||(p>1&&ref[p-2]===x))return -1;           // 重复读刚读过的词：忽略
+  const fn=FN.has(x),near=Math.min(p+(fn?2:4),ref.length);         // 漏读/卡壳：只允许往前找几个词
+  for(let i=p+1;i<near;i++)if(similar(ref[i],x))return i;
+  if(!fn&&j+1<seq.length)                                          // 真的跳读了一段：要求连续两个词都对上才跳
+    for(let i=near;i<Math.min(p+15,ref.length);i++)
+      if(ref[i]===x&&(i+1>=ref.length||similar(ref[i+1],seq[j+1])))return i;
+  return -1;
+}
+let lastAct=Date.now(),idleWarn=false;
+let retryN=0,retryT=0,whyStop='',gotAny=false,endedByUs=false;
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function setWhy(t){const e=$('why');if(e)e.textContent=t||''}
+async function start(){
+  if(reading)return;
+  if(!SR){msg(L('这个浏览器不支持免费的语音识别，请用电脑版 Chrome 或 Edge 打开','This browser does not support free speech recognition. Please open this page in Chrome or Edge on a computer.'));return}
+  ttsStop();
+  if(P>=ref.length)resetState();
+  reading=true;lastAct=Date.now();idleWarn=false;retryN=0;whyStop='';setWhy('');msg(L('正在连接麦克风…（如果浏览器问是否允许使用麦克风，请点「允许」）','Connecting to the microphone… (if the browser asks to use the microphone, click “Allow”)'));
+  t0=Date.now();base={st:st.slice(),P,heard:heard.slice(),score:score.slice()};render();
+  openRec();
+}
+// 免费版：识别出的词只用来判断「读到哪里了」。每一次识别连接结束后，已读的进度保存在 base 里，自动接着开下一个
+function openRec(){
+  const r=new SR();rec=r;r.lang='en-US';r.continuous=true;r.interimResults=true;r.maxAlternatives=1;gotAny=false;
+  r.onstart=()=>{if(rec===r&&reading)msg(L('正在听… 请读出高亮的词','Listening… Read the highlighted word aloud'))};
+  r._off=0;r._drop=0;
+  r.onresult=e=>{if(rec!==r)return;r._lastE=e;
+    const txtOf=(a,b)=>{let t='';for(let i=a;i<b;i++){let x=e.results[i][0].transcript;if(i===r._off&&r._drop)x=x.trim().split(/\s+/).slice(r._drop).join(' ');t+=' '+x}return t};
+    const toks=t=>t.split(/\s+/).map(norm).filter(Boolean);
+    // 已经「定稿」的句子：立刻把进度存下来，以后不再重算它们（光标不会因为识别结果被修改而倒退）
+    let nf=r._off;while(nf<e.results.length&&e.results[nf].isFinal)nf++;
+    if(nf>r._off){const res=align(toks(txtOf(r._off,nf)));if(res.p>=P){st=res.s;P=res.p}
+      base={st:st.slice(),P,heard:heard.slice(),score:score.slice()};r._off=nf;r._drop=0}
+    const txt=txtOf(r._off,e.results.length),hyp=toks(txt);
+    if(hyp.length){lastAct=Date.now();gotAny=true;retryN=0;if(idleWarn){idleWarn=false;msg(L('正在听… 请读出高亮的词','Listening… Read the highlighted word aloud'))}}
+    dbg2(txt);
+    const res=align(hyp);
+    if(res.p>=P)apply(res);     // 光标只往前走，绝不往回跳
+    else if(P>=ref.length&&reading){whyStop=DONE;stop()}
+  };
+  r.onerror=e=>{if(rec!==r)return;
+    const er=e.error;
+    if(er==='no-speech'||er==='aborted')return;                    // 安静了一会儿：onend 里会自动重开
+    if(er==='not-allowed'||er==='service-not-allowed'){failStop(L('麦克风没有被允许，或这个浏览器的语音识别被禁用了。请点地址栏左边的图标，允许使用麦克风，然后重新点「开始朗读」','The microphone was not allowed, or speech recognition is turned off in this browser. Click the icon at the left of the address bar, allow the microphone, then click “Start Reading” again.'));return}
+    if(er==='audio-capture'){failStop(L('找不到麦克风，请检查麦克风是否插好、是否被别的程序占用','No microphone found. Check that it is plugged in and not being used by another program.'));return}
+    if(er==='network'){r._net=true;return}                           // 网络问题：onend 里重连
+    r._other=er;
+  };
+  r.onend=()=>{if(rec!==r||!reading)return;
+    base={st:st.slice(),P,heard:heard.slice(),score:score.slice()};      // 保存这一段已经读到的进度
+    rec=null;
+    if(r._net){reconnect(L('网络连接中断','Network connection lost'));return}
+    if(r._other){reconnect(L('识别服务出了点问题（'+r._other+'）','Speech service problem ('+r._other+')'));return}
+    setTimeout(()=>{if(reading&&!rec)openRec()},gotAny?150:600);   // 正常结束（比如安静太久）：直接接着听
+  };
+  try{r.start()}catch(x){reconnect(L('启动失败','Failed to start'))}
+}
+const dbg2=t=>{try{const d=$('dbg');d.value=(d.value+t.trim()+'\n').slice(-3000)}catch(x){}};
+function failStop(text){
+  const secs=(Date.now()-t0)/1000;reading=false;const old=rec;rec=null;try{old&&old.abort()}catch(x){}
+  addUsage(secs);finish(secs);msg(text);setWhy(L('⏹ 停止原因：','⏹ Stopped because: ')+text);
+}
+function reconnect(why){
+  const now=Date.now();if(now-retryT>120000)retryN=0;retryT=now;
+  if(++retryN>5){failStop(L('连接一直不稳定，已停止。请检查网络后，重新点「开始朗读」','The connection kept dropping, so reading stopped. Check your internet, then click “Start Reading” again.'));return}
+  msg(L('⚠ '+why+'，正在自动重新连接…（已读的内容不会丢）','⚠ '+why+'. Reconnecting automatically… (your progress is kept)'));
+  const old=rec;rec=null;try{old&&old.abort()}catch(x){}
+  setTimeout(()=>{if(reading&&!rec)openRec()},800+retryN*400);
+}
+// 翻页时不关掉语音连接：连接一直开着，浏览器就不会再问「是否允许使用麦克风」
+function hopPage(t){
+  const r=rec,e=r&&r._lastE;
+  const secs=(Date.now()-t0)/1000;addUsage(secs);finish(secs);
+  let off=r?r._off:0,drop=0;
+  if(e&&e.results.length){const li=e.results.length-1,last=e.results[li];
+    if(last.isFinal){off=e.results.length;drop=0}
+    else{off=li;drop=(off===r._off&&r._drop?Math.max(0,last[0].transcript.trim().split(/\s+/).length):last[0].transcript.trim().split(/\s+/).length)}}
+  window._keep=true;showPage(t);window._keep=false;
+  if(r){r._off=off;r._drop=(e&&e.results.length&&!e.results[e.results.length-1].isFinal)?(e.results[e.results.length-1][0].transcript.trim().split(/\s+/).length):0}
+  t0=Date.now();lastAct=Date.now();base={st:st.slice(),P,heard:heard.slice(),score:score.slice()};
+  msg(L('已翻到第 '+(pgI+1)+' 页，继续听… 请读出高亮的词','Turned to page '+(pgI+1)+'. Still listening… Read the highlighted word aloud'));
+}
+function stop(after){
+  if(!reading)return;
+  if(!after&&whyStop===DONE&&$('auto').checked&&pages.length&&pgI<pages.length-1&&P>=ref.length&&rec){whyStop='';hopPage(pgI+1);return}
+  const why=()=>{setWhy(L('⏹ 停止原因：','⏹ Stopped because: ')+(whyStop===DONE?L('这一页已经读完','this page is finished'):(whyStop||L('你点了「结束」','you clicked “Stop”'))));whyStop=''};
+  reading=false;const secs=(Date.now()-t0)/1000;
+  const old=rec;rec=null;try{old&&old.abort()}catch(x){}
+  addUsage(secs);finish(secs);why();
+  if(typeof after==='function')after();
+  else if($('auto').checked&&pages.length&&pgI<pages.length-1&&P>=ref.length){showPage(pgI+1);msg(L('已自动翻到下一页，请继续读','Turned to the next page automatically. Keep reading!'));setTimeout(start,500)}
+}
+function finish(secs){
+  msg('');render();
+  const read=st.filter(x=>x!=='n').length;if(!read)return;
+  const skip=[];
+  st.forEach((x,i)=>{const w=words[i].replace(/[^\w']/g,'');if(x==='skip')skip.push(w)});
+  const wpm=Math.round(read/Math.max(secs/60,.05));
+  const chip=a=>a.map(w=>`<span class="chip" onclick="speak('${w}')">${w}</span>`).join('')||L('无','none');
+  $('report').style.display='block';
+  $('report').innerHTML=L(`<b>本次报告</b><br>读到了 ${read} 个词，用时 <b>${fmtDur(secs)}</b>，速度约 <b>${wpm}</b> 词/分钟<br>漏读（跳过）的词：<div>${chip(skip)}</div><small>免费版不评发音分，只记录读到哪里和时间。</small>`,`<b>This session</b><br>Read ${read} words in <b>${fmtDur(secs)}</b>, about <b>${wpm}</b> words per minute<br>Skipped words: <div>${chip(skip)}</div><small>The free version does not score pronunciation. It only records how far you read and for how long.</small>`);
+  const h=store('hist')||[];h.unshift({d:new Date().toLocaleString(),t:words.slice(0,4).join(' ')+'…',avg:'-',wpm,n:read});store('hist',h.slice(0,8));
+  showStore();
+  if(pages.length&&pgI<pages.length-1&&P>=ref.length&&!$('auto').checked)msg(L('这一页读完了，点「下一页」继续','This page is done. Click “Next ▶” to continue'));
+}
+
+// ---- 范读：用浏览器自带的语音，一句一句地读给你听 ----
+let sents=[],tIdx=0,tOn=false,tRange=null,tWord=-1,tTok=0,voices=[];
+const SENT_END=/[.!?]["”')]*$/;
+function buildSents(){sents=[];let a=0;words.forEach((w,i)=>{if(SENT_END.test(w)||i===words.length-1){sents.push([a,i]);a=i+1}})}
+function loadVoices(){
+  try{voices=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang))}catch(e){voices=[]}
+  const sc=v=>(/en[-_]US/i.test(v.lang)?10:0)+(/natural|neural|online/i.test(v.name)?8:0)+(/google|samantha|aria|jenny|ava|allison|zira/i.test(v.name)?3:0);
+  voices.sort((a,b)=>sc(b)-sc(a));
+  const sel=$('voice'),saved=store('ttsvoice');
+  sel.innerHTML=voices.map((v,i)=>`<option value="${i}">${esc(v.name)} (${v.lang})</option>`).join('')||'<option value="-1">'+L('默认英语声音','Default English voice')+'</option>';
+  const k=voices.findIndex(v=>v.name===saved);if(k>=0)sel.value=k;
+}
+function updateTtsBtn(){$('say').textContent=tOn?L('⏹ 停止听','⏹ Stop listening'):(tIdx>0&&tIdx<sents.length?L(`▶ 接着听（第 ${tIdx+1} 句）`,`▶ Continue (sentence ${tIdx+1})`):L('🔊 听范读','🔊 Listen'))}
+function ttsStop(noRender){
+  tTok++;tOn=false;tRange=null;tWord=-1;
+  try{speechSynthesis.cancel()}catch(e){}
+  updateTtsBtn();if(!noRender&&words.length)render();
+}
+function ttsSay(i,single){
+  if(!('speechSynthesis' in window)){msg(L('这个浏览器不支持语音朗读，请换用 Chrome 或 Edge','This browser cannot read aloud. Please use Chrome or Edge.'));return}
+  if(reading){msg(L('请先点「结束」，再听范读','Click “Stop” first, then listen'));return}
+  if(i<0||i>=sents.length){ttsStop();tIdx=0;updateTtsBtn();return}
+  try{speechSynthesis.cancel()}catch(e){}
+  const tok=++tTok,[a,b]=sents[i];tIdx=i;tOn=true;tRange=[a,b];tWord=-1;
+  const text=words.slice(a,b+1).join(' '),starts=[];let pos=0;
+  for(let k=a;k<=b;k++){starts.push(pos);pos+=words[k].length+1}
+  const u=new SpeechSynthesisUtterance(text);u.lang='en-US';u.rate=+$('rate').value||.8;
+  const v=voices[+$('voice').value];if(v){u.voice=v;u.lang=v.lang}
+  u.onboundary=e=>{
+    if(tok!==tTok||(e.name&&e.name!=='word'))return;
+    let k=0;while(k+1<starts.length&&starts[k+1]<=e.charIndex)k++;
+    if(a+k!==tWord){tWord=a+k;render()}
+  };
+  u.onend=()=>{
+    if(tok!==tTok)return;
+    if(single){ttsStop();tIdx=Math.min(i+1,sents.length);if(tIdx>=sents.length)tIdx=0;updateTtsBtn();msg('');return}
+    if(i+1>=sents.length){ttsStop();tIdx=0;updateTtsBtn();msg(L('范读完毕。现在轮到你读了，点「🎤 开始朗读」','Finished. Now it’s your turn — click “🎤 Start Reading”'));return}
+    if($('step').checked){ttsStop();tIdx=i+1;updateTtsBtn();msg(L('这句听完了。想自己读就点「🎤 开始朗读」，想接着听就点「▶ 接着听」','Sentence finished. Click “🎤 Start Reading” to read it yourself, or “▶ Continue” to keep listening.'));return}
+    ttsSay(i+1,false);
+  };
+  u.onerror=e=>{
+    if(tok!==tTok)return;
+    if(e.error&&!/cancel|interrupt/i.test(e.error)){ttsStop();msg(L('朗读出错：','Read-aloud error: ')+e.error)}
+  };
+  updateTtsBtn();render();
+  const el=document.querySelector('.say');if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
+  msg(single?'':L('正在朗读范读… 点「停止听」可随时停下','Reading aloud… Click “Stop listening” any time'));
+  speechSynthesis.speak(u);
+}
+function sayFrom(i,single){const k=sents.findIndex(s=>i>=s[0]&&i<=s[1]);ttsSay(k,single)}
+$('say').onclick=()=>{if(tOn){ttsStop();msg('');return}ttsSay(tIdx>=sents.length?0:tIdx,false)};
+$('voice').onchange=()=>{const v=voices[+$('voice').value];if(v)store('ttsvoice',v.name)};
+try{loadVoices();speechSynthesis.onvoiceschanged=loadVoices}catch(e){}
+window.addEventListener('beforeunload',()=>{try{speechSynthesis.cancel()}catch(e){}});
+
+let pages=[],pgI=0,fkey='',shelf=[];
+// ---- 书架：用 IndexedDB 保存上传的书（关掉程序也不会丢）----
+const dbp=new Promise((res,rej)=>{const r=indexedDB.open('reading-tutor',1);r.onupgradeneeded=()=>r.result.createObjectStore('books',{keyPath:'name'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const dbReq=(mode,fn)=>dbp.then(d=>new Promise((res,rej)=>{const t=d.transaction('books',mode),q=fn(t.objectStore('books'));t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)}));
+const bookPut=b=>dbReq('readwrite',s=>s.put(b));
+const bookAll=()=>dbReq('readonly',s=>s.getAll());
+const bookDel=n=>dbReq('readwrite',s=>s.delete(n));
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+async function renderShelf(){
+  try{shelf=(await bookAll()).sort((a,b)=>b.added-a.added)}catch(e){shelf=[]}
+  $('shelf').innerHTML=shelf.map((b,i)=>`<div style="margin:6px 0"><b>${esc(b.name)}</b> <small>${L(b.pages.length+' 页',b.pages.length+' pages')}${b.name===fkey?L(' ｜ 当前在读',' | reading now'):''}</small><br><button onclick="openBook(shelf[${i}])">${L('打开','Open')}</button><button class="g" onclick="delBook(${i})">${L('删除','Delete')}</button></div>`).join('')||'<small>'+L('还没有书。上传 PDF 或 txt，或粘贴文章后，会自动保存在这里。','No books yet. Upload a PDF or txt, or paste an article, and it will be saved here.')+'</small>';
+}
+function openBook(b){pages=b.pages;fkey=b.name;store('last',fkey);const pos=store('pos:'+fkey)||0,sk=store('skip:'+fkey);$('fres').innerHTML='';showPage(pos,sk&&sk.p===pos?sk.w:0);renderShelf();msg('')}
+async function saveBook(name,pg){await bookPut({name,pages:pg,added:Date.now()});store('last',name);await renderShelf()}
+async function delBook(i){const b=shelf[i];if(!b||!confirm(L('确定从书架删除「'+b.name+'」吗？','Delete “'+b.name+'” from the bookshelf?')))return;await bookDel(b.name);store('pos:'+b.name,null);store('skip:'+b.name,null);await renderShelf()}
+const WORKER='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+function paginate(text){
+  const out=[];let cur=[],n=0;
+  const flush=()=>{if(cur.length){out.push(cur.map((c,i)=>(i?(c.np?'\n\n':' '):'')+c.t).join(''));cur=[];n=0}};
+  for(const p of text.split(/\n[ \t\r]*\n+/)){
+    const sents=p.match(/[^.!?]+[.!?]+["”')]*\s*|[^.!?]+$/g)||[p];let first=true;
+    for(const x of sents){const t=x.trim();if(!t)continue;
+      cur.push({t,np:first&&cur.length>0});first=false;n+=t.split(/\s+/).length;
+      if(n>=100)flush()}
+  }
+  flush();return out;
+}
+// 保留段落：把原始文字整理成"段落之间空一行"的格式
+function normText(t){
+  t=t.replace(/\r\n?/g,'\n');let paras;
+  if(/\n[ \t]*\n/.test(t))paras=t.split(/\n[ \t]*\n+/);
+  else{const ls=t.split('\n').map(x=>x.trim()).filter(Boolean);const avg=ls.reduce((a,x)=>a+x.length,0)/(ls.length||1);paras=avg>100?ls:[t]}
+  return paras.map(p=>p.replace(/\s+/g,' ').trim()).filter(Boolean).join('\n\n');
+}
+function skipWords(t,n){const re=/\S+/g;let m,c=0;while((m=re.exec(t))){c++;if(c===n)return t.slice(re.lastIndex).replace(/^\s+/,'')}return ''}
+// PDF：根据每行的位置判断哪里是新段落（首行缩进、段间空行、上一行明显较短）
+function pdfItemsToLines(items){
+  const lines=[];let cur=null;
+  for(const it of items){
+    const str=it.str;if(!str||!str.trim())continue;
+    const x=it.transform[4],y=it.transform[5],h=it.height||Math.abs(it.transform[3])||10,w=it.width||0;
+    if(cur&&Math.abs(y-cur.y)<h*0.5){cur.t.push(str);cur.r=Math.max(cur.r,x+w);cur.x=Math.min(cur.x,x);cur.h=Math.max(cur.h,h)}
+    else{cur={x,y,r:x+w,h,t:[str]};lines.push(cur)}
+  }
+  return lines.map(l=>({x:l.x,y:l.y,r:l.r,h:l.h,text:l.t.join(' ').replace(/\s+/g,' ').trim()})).filter(l=>l.text);
+}
+function pdfPagesToText(pages){
+  const END=/[.!?…]["”’')\]]*$/;const paras=[];let curP=[],prev=null;
+  pages=pages.map(lines=>lines.filter((l,i)=>!(/^\d{1,4}$/.test(l.text)&&(i===0||i===lines.length-1))));
+  const rs=[].concat(...pages.map(ls=>ls.map(l=>l.r))).sort((a,b)=>a-b);
+  const GRE=rs.length?rs[Math.min(rs.length-1,Math.floor(rs.length*0.97))]:0;
+  pages.forEach((lines,pn)=>{
+    if(!lines.length)return;
+    const lm=Math.min(...lines.map(l=>l.x));
+    const gs=[];for(let i=1;i<lines.length;i++){const g=Math.abs(lines[i-1].y-lines[i].y);if(g>0.5*lines[i].h&&g<3*lines[i].h)gs.push(g)}
+    gs.sort((a,b)=>a-b);const mg=gs.length?gs[Math.floor(gs.length/2)]:0;
+    lines.forEach(l=>{
+      l.pn=pn;l.lm=lm;
+      if(prev){
+        const pEnd=END.test(prev.text),indent=l.x-lm>0.8*l.h,short=(prev.r-prev.lm)<0.7*(GRE-prev.lm);
+        const gap=Math.abs(prev.y-l.y),big=prev.pn===l.pn&&(mg?gap>1.45*mg:gap>2*l.h);
+        if(big||(pEnd&&(indent||short))){paras.push(curP.join(' '));curP=[]}
+      }
+      curP.push(l.text);prev=l;
+    });
+  });
+  if(curP.length)paras.push(curP.join(' '));
+  return paras.join('\n\n');
+}
+function showPage(i,w){
+  $('mk').style.display='none';
+  if(reading&&!window._keep){reading=false;try{rec.abort()}catch(e){};rec=null}
+  pgI=Math.max(0,Math.min(i,pages.length-1));w=w||0;
+  const pw=pages[pgI].split(/\s+/);
+  load(w>0&&w<pw.length?skipWords(pages[pgI],w):pages[pgI]);
+  _pgMid=w>0&&w<pw.length;setPgLabel();$('pager').style.display='block';
+  store('pos:'+fkey,pgI);store('skip:'+fkey,w>0?{p:pgI,w:w}:null);
+  $('gopg').placeholder='1-'+pages.length;$('gopg').max=pages.length;$('finder').style.display='block';$('fslide').max=pages.length;$('fslide').value=pgI+1;fshow();
+}
+const turnTo=t=>{if(reading&&rec){hopPage(Math.max(0,Math.min(t,pages.length-1)))}else showPage(t)};
+const turn=d=>turnTo(pgI+d);
+function gotoPage(){
+  const v=parseInt($('gopg').value,10),n=pages.length;
+  if(!v||v<1||v>n){msg(L('请输入 1 到 '+n+' 之间的页码（注意这是软件里的页数，和纸质书页码不一样）','Enter a page number from 1 to '+n+' (these are the app’s pages, not the paper book’s page numbers)'));$('gopg').select();return}
+  turnTo(v-1);$('gopg').value='';msg(L('已跳到第 '+v+' 页','Jumped to page '+v));
+}
+$('gopgb').onclick=gotoPage;$('gopg').onkeydown=e=>{if(e.key==='Enter')gotoPage()};
+$('prevp').onclick=()=>turn(-1);$('nextp').onclick=()=>turn(1);
+// ---- 备份 / 导入 ----
+const BK=/^(vocab|hist|last)$|^(pos|skip|use|day):/;
+async function buildBackup(){
+  const books=await bookAll(),data={};
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(BK.test(k))data[k]=store(k)}
+  return {app:'reading-tutor',v:1,exported:new Date().toISOString(),books,data};
+}
+async function exportAll(){
+  try{
+    const j=await buildBackup();
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(j)],{type:'application/json'}));
+    a.download='reading-tutor-backup-'+dayKey().slice(4)+'.json';document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+    msg(L('已导出备份：'+j.books.length+' 本书，'+((j.data.vocab||[]).length)+' 个生词。文件在浏览器的"下载"文件夹里','Backup exported: '+j.books.length+' books, '+((j.data.vocab||[]).length)+' words. The file is in your browser’s Downloads folder.'));
+  }catch(e){msg(L('导出失败：','Export failed: ')+e.message)}
+}
+async function applyBackup(j,ask){
+  if(!j||j.app!=='reading-tutor'||!Array.isArray(j.books)){msg(L('这不是本软件导出的备份文件','This is not a backup file from this app'));return false}
+  const have=new Set((await bookAll()).map(b=>b.name)),dup=j.books.filter(b=>have.has(b.name)).map(b=>b.name);
+  const d=j.data||{};
+  if(ask&&!ask(L('将导入 '+j.books.length+' 本书、'+((d.vocab||[]).length)+' 个生词。'+(dup.length?'\n\n其中已存在的书（'+dup.join('、')+'）的内容和阅读进度，会被备份里的覆盖。':'')+'\n\n生词本会和现在的合并，不会删除你现有的内容。继续吗？','This will import '+j.books.length+' books and '+((d.vocab||[]).length)+' words.'+(dup.length?'\n\nBooks you already have ('+dup.join(', ')+') will be replaced by the backup, including their reading progress.':'')+'\n\nYour word list will be merged; nothing will be deleted. Continue?')))return false;
+  for(const b of j.books)await bookPut(b);
+  store('vocab',[...new Set([...(store('vocab')||[]),...(d.vocab||[])])]);
+  if(d.hist)store('hist',[...(store('hist')||[]),...d.hist].slice(0,8));
+  Object.keys(d).forEach(k=>{
+    if(/^(use|day):/.test(k))store(k,Math.max(store(k)||0,d[k]||0));
+    else if(/^(pos|skip):/.test(k))store(k,d[k]);
+  });
+  if(d.last&&!store('last'))store('last',d.last);
+  await renderShelf();showStore();
+  msg(L('已导入 '+j.books.length+' 本书','Imported '+j.books.length+' books'));
+  if(!fkey){const b=shelf.find(x=>x.name===store('last'));if(b)openBook(b)}
+  return true;
+}
+$('expbtn').onclick=exportAll;
+$('impbtn').onclick=()=>$('impfile').click();
+$('impfile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  let j;try{j=JSON.parse(await f.text())}catch(x){msg(L('这个文件读不了，请选择之前导出的 .json 备份文件','Can’t read this file. Please choose a .json backup you exported before.'));return}
+  try{await applyBackup(j,confirm)}catch(x){msg(L('导入失败：','Import failed: ')+x.message)}};
+// ---- 找到纸质书读到的位置 ----
+function fshow(){const n=+$('fslide').value;$('fn').textContent=L(`第 ${n} / ${pages.length} 页`,`Page ${n} / ${pages.length}`);$('fprev').textContent=(pages[n-1]||'').split(/\s+/).slice(0,40).join(' ')+' …'}
+$('fslide').oninput=fshow;
+$('fstart').onclick=()=>{showPage(+$('fslide').value-1);msg(L('已跳到所选页的开头','Jumped to the start of the selected page'))};
+function findPlace(){
+  const q=$('fq').value.split(/\s+/).map(norm).filter(Boolean);
+  if(q.length<2){$('fres').innerHTML='<small>'+L('请至少输入 2 个词，最好 4～8 个词。','Please type at least 2 words — 4 to 8 is best.')+'</small>';return}
+  const flat=[];pages.forEach((t,p)=>t.split(/\s+/).forEach((x,w)=>{const n=norm(x);if(n)flat.push({p,w,n})}));
+  const find=seq=>{const r=[];for(let i=0;i+seq.length<=flat.length;i++){let ok=true;for(let j=0;j<seq.length;j++)if(flat[i+j].n!==seq[j]){ok=false;break}if(ok)r.push([i,i+seq.length-1])}return r};
+  let hits=find(q),note='';
+  if(!hits.length&&q.length>6){hits=find(q.slice(0,5));note=L('（没有找到完整的一句，改用开头 5 个词查找）','(The whole sentence wasn’t found, so the first 5 words were used)')}
+  if(!hits.length&&q.length>6){hits=find(q.slice(-5));note=L('（没有找到完整的一句，改用最后 5 个词查找）','(The whole sentence wasn’t found, so the last 5 words were used)')}
+  if(!hits.length){$('fres').innerHTML='<small>'+L('没有找到。可以换成这一句中间的几个词再试；如果书是扫描版 PDF，或者这本书在软件里的文字和纸质书版本不同，也可能找不到，这时请用下面的滑块定位。','Not found. Try a few words from the middle of the sentence. If the book is a scanned PDF, or the text here differs from the paper edition, it may not be found — use the slider below instead.')+'</small>';return}
+  const sentStart=(p,w)=>{const pw=pages[p].split(/\s+/);while(w>0&&!SENT_END.test(pw[w-1]))w--;return w};
+  window._hits=hits.slice(0,8).map(([a,b])=>{
+    const A=flat[a],e=flat[b];const pw=pages[e.p].split(/\s+/);let k=e.w;while(k<pw.length-1&&!SENT_END.test(pw[k]))k++;
+    const sw=sentStart(A.p,A.w);
+    const tx=A.p===e.p?pw.slice(sw,k+1).join(' '):pages[A.p].split(/\s+/).slice(sw).join(' ')+' '+pw.slice(0,k+1).join(' ');
+    return {p:e.p,next:k+1,sp:A.p,sw,tx,a,b}});
+  $('fres').innerHTML=(note?`<small>${note}</small>`:'')+`<small>${L(`找到 ${hits.length} 处`,`Found ${hits.length} matches`)}${hits.length>8?L('（只显示前 8 处）',' (showing the first 8)'):''}${L('：',':')}</small>`+window._hits.map((h,i)=>{
+    const a=flat[h.a],b=flat[h.b];
+    const ctx=(p,w1,w2)=>pages[p].split(/\s+/).slice(Math.max(0,w1),w2).join(' ');
+    const pre=a.p===b.p?ctx(a.p,a.w-8,a.w):'',mid=a.p===b.p?ctx(a.p,a.w,b.w+1):ctx(a.p,a.w,9999)+' '+ctx(b.p,0,b.w+1),post=ctx(b.p,b.w+1,b.w+9);
+    return `<div class="hit"><small>${L(`第 ${h.p+1} 页`,`Page ${h.p+1}`)}</small><br>…${esc(pre)} <mark>${esc(mid)}</mark> ${esc(post)}…<br><button onclick="fgoHit(${i},1)">${L('从下一句开始读','Start from the next sentence')}</button><button class="g" onclick="fgoHit(${i},0)">${L('从这一句开始读','Start from this sentence')}</button></div>`}).join('');
+}
+function fgoHit(i,after){
+  const h=window._hits[i];if(!h)return;
+  const len=pages[h.p].split(/\s+/).length;
+  if(after===0){showPage(h.sp,h.sw)}
+  else if(h.next>=len){showPage(h.p+1)}
+  else{showPage(h.p,h.next)}
+  const mk=$('mk');window._mkDraw=()=>{mk.innerHTML='📍 <b>'+L('纸质书读到这里：','Stopped here in the paper book: ')+'</b>'+esc(h.tx)+'<br><small>'+(after===0?L('下面的文章从这一句开始。','The text below starts with this sentence. '):L('下面的文章从这一句的<b>下一句</b>开始。','The text below starts with the <b>next</b> sentence. '))+L('想看前面的内容，可点「上一页」。','To see what came before, click “◀ Previous”.')+'</small>'};window._mkDraw();mk.style.display='block';
+  msg('');$('finder').open=false;
+  mk.scrollIntoView({behavior:'smooth',block:'start'});
+}
+$('fgo').onclick=findPlace;$('fq').onkeydown=e=>{if(e.key==='Enter')findPlace()};
+$('file').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;e.target.value='';msg(L('正在读取文件…','Reading the file…'));let text='';
+  try{
+    if(/\.txt$/i.test(f.name))text=await f.text();
+    else{
+      if(!window.pdfjsLib){msg(L('PDF 组件没有加载成功，请检查网络后刷新页面','The PDF reader did not load. Check your internet and refresh the page.'));return}
+      try{const w=await(await fetch(WORKER)).text();pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([w],{type:'text/javascript'}))}catch(x){}
+      const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,parts=[];
+      for(let i=1;i<=pdf.numPages;i++){msg(L(`正在提取文字 ${i}/${pdf.numPages}…`,`Extracting text ${i}/${pdf.numPages}…`));const c=await(await pdf.getPage(i)).getTextContent();parts.push(pdfItemsToLines(c.items))}
+      text=pdfPagesToText(parts);
+    }
+  }catch(x){msg(L('读取失败：','Could not read the file: ')+(x.message||x));return}
+  text=normText(text);
+  if(text.split(/\s+/).length<20){msg(L('没有读出文字，这个 PDF 可能是扫描件或照片','No text found. This PDF may be scanned pages or photos.'));return}
+  pages=paginate(text);fkey=f.name;let saved=true;
+  try{await saveBook(fkey,pages)}catch(x){saved=false}
+  msg(L(`已读取，共 ${pages.length} 页`,`Loaded ${pages.length} pages`)+(saved?L('，已保存到书架',', saved to your bookshelf'):L('，但保存失败（浏览器可能禁止了存储）',', but saving failed (the browser may be blocking storage)')));showPage(store('pos:'+fkey)||0);
+};
+const dayKey=()=>{const d=new Date();return 'day:'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+function fmtDur(sec){sec=Math.max(0,Math.round(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),x=sec%60;return (h?h+L(' 小时 ',' h '):'')+(h||m?m+L(' 分 ',' min '):'')+x+L(' 秒',' s')}
+function showToday(){
+  const base=store(dayKey())||0,live=(reading&&t0)?(Date.now()-t0)/1000:0;
+  $('today').innerHTML=L('⏱ 今天已朗读：','⏱ Read aloud today: ')+'<b>'+fmtDur(base+live)+'</b>'+(reading?' <small style="color:#1a8f3c">'+L('（正在计时）','(timing)')+'</small>':'');
+}
+setInterval(showToday,1000);
+function addUsage(secs){const d=dayKey();store(d,(store(d)||0)+secs);showStore();showToday()}
+function showStore(){
+  showToday();
+  const v=store('vocab')||[];
+  $('vocab').innerHTML=v.map(w=>`<span class="chip" data-w="${esc(w)}">${esc(w)}</span>`).join('')||'<small>'+L('暂无','none yet')+'</small>';
+  $('vcount').textContent=v.length?L(`共 ${v.length} 个`,`${v.length} word${v.length>1?'s':''}`):'';$('vclear').disabled=!v.length;
+  $('hist').innerHTML=(store('hist')||[]).map(r=>`<div><small>${r.d}</small> ${r.t} ｜ ${r.n}${L('词',' words')} ｜ ${r.wpm}${L('词/分',' wpm')}</div>`).join('')||'<small>'+L('暂无','none yet')+'</small>';
+}
+$('upbtn').onclick=()=>$('file').click();
+{const a=store('auto');if(a===false)$('auto').checked=false}
+$('auto').onchange=()=>store('auto',$('auto').checked);
+{const v=store('idle');if(v&&[...$('idle').options].some(o=>o.value==v))$('idle').value=v}
+$('idle').onchange=()=>store('idle',$('idle').value);
+setInterval(()=>{
+  if(!reading||!rec)return;
+  const lim=+$('idle').value,idle=(Date.now()-lastAct)/1000;
+  if(idle>=lim){const m=Math.round(lim/60*10)/10;idleWarn=false;whyStop=L('连续 '+m+' 分钟没有听到朗读（你设置的是 '+m+' 分钟）','no reading was heard for '+m+' min (your setting)');stop(()=>msg(L('⏹ 已自动停止：连续 '+m+' 分钟没有听到朗读。要继续请点「开始朗读」','⏹ Stopped automatically: no reading was heard for '+m+' min. Click “Start Reading” to continue.')))}
+  else if(lim-idle<=20&&lim>=40){idleWarn=true;msg(L('没听到朗读，'+Math.ceil(lim-idle)+' 秒后将自动停止…（读出声就会继续）','No reading heard. Stopping in '+Math.ceil(lim-idle)+' s… (start reading to keep going)'))}
+},1000);
+let _lastR=null;
+function syncBtns(){if(_lastR===reading)return;_lastR=reading;
+  $('go').classList.toggle('on',reading);$('go').disabled=reading;$('go').textContent=reading?L('🎙 正在听…（读出高亮的词）','🎙 Listening… (read the highlighted word)'):L('🎤 开始朗读','🎤 Start Reading');
+  $('stop').classList.toggle('on',reading);$('stop').disabled=!reading}
+setInterval(syncBtns,150);syncBtns();
+$('vclear').onclick=()=>{
+  const n=(store('vocab')||[]).length;if(!n)return;
+  if(confirm(L('确定要清空生词本吗？\n现在一共有 '+n+' 个单词，清空后不能恢复。','Clear the whole word list?\nIt has '+n+' words, and this can’t be undone.'))){store('vocab',[]);showStore();msg(L('生词本已清空','Word list cleared'))}
+};
+$('go').onclick=start;$('stop').onclick=()=>{whyStop=L('你点了「结束」','you clicked “Stop”');stop()};
+$('reset').onclick=()=>{if(reading){reading=false;try{rec.abort()}catch(e){};rec=null}resetState();msg('')};
+$('load').onclick=async()=>{const t=$('src').value.trim();if(!t)return;if(reading)stop();
+  pages=paginate(normText(t));fkey=L('粘贴：','Pasted: ')+t.split(/\s+/).slice(0,4).join(' ')+'…';
+  let saved=true;try{await saveBook(fkey,pages)}catch(x){saved=false}
+  showPage(0);msg(saved?L('已保存到书架','Saved to your bookshelf'):L('已载入（但保存失败）','Loaded (but saving failed)'))};
+
+// 切换界面语言后，把会变化的部分重新画一遍
+let _pgMid=false,_dRedraw=null,_vRedraw=null;
+function setPgLabel(){if(pages.length)$('pg').textContent=L(` 第 ${pgI+1} / ${pages.length} 页 `,` Page ${pgI+1} / ${pages.length} `)+(_pgMid?L('（从中间开始）',' (from the middle)'):'')}
+function setLang(l){
+  LANG=l;try{localStorage.setItem('uilang',l)}catch(e){}
+  applyStatic();
+  if(words.length)render();showStore();renderShelf();updateTtsBtn();_lastR=null;syncBtns();loadVoices();
+  if(pages.length){setPgLabel();fshow();$('gopg').placeholder='1-'+pages.length}
+  if($('dict').style.display!=='none'&&_dRedraw)_dRedraw();
+  if($('vdict').style.display!=='none'&&_vRedraw)_vRedraw();
+  if($('pagetr').style.display!=='none')translatePage();
+  if($('mk').style.display!=='none'&&window._mkDraw)window._mkDraw();
+  $('report').style.display='none';$('fres').innerHTML='';msg('');
+}
+$('langbtn').onclick=()=>setLang(LANG==='en'?'zh':'en');
+if(!SR){$('cfg').open=true;msg(L('提示：这个浏览器不支持免费的语音识别，请用电脑版 Chrome 或 Edge 打开','Tip: this browser does not support free speech recognition. Please open this page in Chrome or Edge on a computer.'))}
+$('src').value=SAMPLE;load(SAMPLE);showStore();
+(async()=>{try{await renderShelf();const l=store('last'),b=shelf.find(x=>x.name===l);if(b)openBook(b)}catch(e){}})();
+</script></body></html>
