@@ -2,6 +2,8 @@
 
 A free reading-aloud helper for kids learning English. Read a story out loud and the words turn green as you go. Listen to the story first, tap any word to hear it and see what it means, and keep a word list of new words.
 
+This is Edison's first try at programming with AI — he built it with Claude.
+
 ### [▶ Open it now in your browser](https://edisonli5656.github.io/English-Reading-Tutor/)
 Works best in **Chrome or Edge on a computer**. Nothing to install, no account, no key.
 
